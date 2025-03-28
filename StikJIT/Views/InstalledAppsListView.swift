@@ -8,63 +8,102 @@
 import SwiftUI
 
 struct InstalledAppsListView: View {
-    @AppStorage("username") private var username = "User"
-    @AppStorage("customBackgroundColor") private var customBackgroundColorHex: String = Color.primaryBackground.toHex() ?? "#000000"
-    @State private var selectedBackgroundColor: Color = Color(hex: UserDefaults.standard.string(forKey: "customBackgroundColor") ?? "#000000") ?? Color.primaryBackground
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    @StateObject var viewModel = InstalledAppsViewModel()
-    @Environment(\.dismiss) var dismiss
-    @State private var searchText: String = ""
-    
-    var onSelect: (String) -> Void
-    
-    var filteredApps: [String] {
-        if searchText.isEmpty {
-            return Array(viewModel.apps.keys) // Use the keys (app names)
-        } else {
-            return viewModel.apps.filter { $0.value.localizedCaseInsensitiveContains(searchText) }.map { $0.key }
-        }
-    }
+
+    @StateObject private var viewModel = InstalledAppsViewModel()
+    @State private var appIcons: [String: UIImage] = [:]
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    var onSelectApp: (String) -> Void
     
     var body: some View {
         NavigationView {
-            ZStack {
-                selectedBackgroundColor.edgesIgnoringSafeArea(.all)
-                
-                List {
-                    ForEach(filteredApps, id: \.self) { bundleId in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(viewModel.apps.sorted(by: { $0.key < $1.key }), id: \.key) { appName, bundleID in
                         Button(action: {
-                            onSelect(bundleId) // Select using the app's bundle ID
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                onSelectApp(bundleID)
+                            }
                         }) {
-                            Text(viewModel.apps[bundleId] ?? "Unknown App")
-                                .font(.system(.body, design: .rounded))
-                                .padding(.vertical, 8)
+                            HStack(spacing: 16) {
+                                // App Icon
+                                if let image = appIcons[bundleID] {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 60, height: 60)
+                                        .cornerRadius(12)
+                                        .shadow(color: colorScheme == .dark ? Color.black.opacity(0.2) : Color.gray.opacity(0.2), 
+                                                radius: 3, x: 0, y: 1)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(UIColor.systemGray5))
+                                        .frame(width: 60, height: 60)
+                                        .overlay(
+                                            Image(systemName: "app")
+                                                .font(.system(size: 26))
+                                                .foregroundColor(.gray)
+                                        )
+                                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                                        .onAppear {
+                                            loadAppIcon(for: bundleID)
+                                        }
+                                }
+                                
+                                // App Name and Bundle ID
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(appName)
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(Color.blue)
+                                    
+                                    Text(bundleID)
+                                        .font(.system(size: 15))
+                                        .foregroundColor(Color.gray)
+                                        .lineLimit(1)
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 20)
+                            .contentShape(Rectangle())
                         }
-                        .listRowBackground(Color(.secondarySystemGroupedBackground))
-                        .cornerRadius(8)
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        if appName != viewModel.apps.sorted(by: { $0.key < $1.key }).last?.key {
+                            Divider()
+                                .padding(.leading, 96)
+                                .padding(.trailing, 20)
+                                .opacity(0.4)
+                        }
                     }
                 }
-                .listStyle(InsetGroupedListStyle())
-                .navigationTitle("Installed Apps")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Done") {
-                            dismiss()
-                        }
+                .background(Color(UIColor.systemBackground))
+            }
+            .background(Color(UIColor.systemGroupedBackground).edgesIgnoringSafeArea(.all))
+            .navigationTitle("Installed Apps")
+            .navigationBarItems(leading: Button("Done") {
+                dismiss()
+            }
+            .font(.system(size: 17, weight: .regular))
+            .foregroundColor(.blue))
+        }
+    }
+    
+    // Helper method to load app icon
+    private func loadAppIcon(for bundleID: String) {
+        AppStoreIconFetcher.getIcon(for: bundleID) { image in
+            if let image = image {
+                DispatchQueue.main.async {
+                    withAnimation(.easeIn(duration: 0.2)) {
+                        self.appIcons[bundleID] = image
                     }
                 }
-                .searchable(text: $searchText, prompt: "Search Apps")
-            }
-            .onReceive(timer) { _ in
-                refreshBackground()
-            }
-            .onAppear {
-                print(filteredApps)
             }
         }
     }
+}
 
-    private func refreshBackground() {
-        selectedBackgroundColor = Color(hex: customBackgroundColorHex) ?? Color.primaryBackground
-    }
+#Preview {
+    InstalledAppsListView { _ in }
 }

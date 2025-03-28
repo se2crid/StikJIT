@@ -1,4 +1,3 @@
-//
 //  SettingsView.swift
 //  StikJIT
 //
@@ -16,6 +15,12 @@ struct SettingsView: View {
 
     @State private var selectedBackgroundColor: Color = Color.primaryBackground
     @State private var showIconPopover = false
+    @State private var showPairingFileMessage = false
+    @State private var pairingFileIsValid = false
+    @State private var isImportingFile = false
+    @State private var importProgress: Float = 0.0
+    
+    @State private var se2cridTapCount: Int = 0
 
     var body: some View {
         ZStack {
@@ -60,6 +65,58 @@ struct SettingsView: View {
                         Spacer()
                     }
                     .listRowBackground(Color.cardBackground)
+                    
+                    if isImportingFile {
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("Processing pairing file...")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundColor(.secondaryText)
+                                Spacer()
+                                Text("\(Int(importProgress * 100))%")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundColor(.secondaryText)
+                            }
+                            
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.cardBackground)
+                                        .frame(height: 8)
+                                    
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.green)
+                                        .frame(width: geometry.size.width * CGFloat(importProgress), height: 8)
+                                        .animation(.linear(duration: 0.3), value: importProgress)
+                                }
+                            }
+                            .frame(height: 8)
+                        }
+                        .padding(.vertical, 8)
+                        .listRowBackground(Color.cardBackground)
+                    }
+                    
+                    if showPairingFileMessage && pairingFileIsValid {
+                        HStack {
+                            Spacer()
+                            Text("✓ Pairing file successfully imported")
+                                .font(.system(.callout, design: .rounded))
+                                .foregroundColor(.green)
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 12)
+                                .background(Color.green.opacity(0.1))
+                                .cornerRadius(8)
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                        .listRowBackground(Color.cardBackground)
+                        .transition(
+                            .asymmetric(
+                                insertion: .scale(scale: 0.9).combined(with: .opacity).animation(.spring(response: 0.4, dampingFraction: 0.7)),
+                                removal: .opacity.animation(.easeOut(duration: 0.25))
+                            )
+                        )
+                    }
                 }
 
                 Section(header: Text("About").font(.headline).foregroundColor(.primaryText)) {
@@ -88,20 +145,34 @@ struct SettingsView: View {
                         Text("jkcoxson")
                             .foregroundColor(.primaryText)
                     }
-                    
                     .listRowBackground(Color.cardBackground)
-                    HStack {
+                    
+    
+                    VStack(alignment: .leading) {
                         Text("Collaborators:")
                             .foregroundColor(.secondaryText)
-                        Spacer()
-                        Text("Stossy11")
-                            .foregroundColor(.primaryText)
-                        Text("Neo")
-                            .foregroundColor(.primaryText)
-                        Text("Se2crid")
-                            .foregroundColor(.primaryText)
+                        HStack {
+                            Text("Stossy11")
+                                .foregroundColor(.primaryText)
+                            Text("Neo")
+                                .foregroundColor(.primaryText)
+                            Text("Se2crid")
+                                .foregroundColor(.primaryText)
+                                .onTapGesture {
+                                    se2cridTapCount += 1
+                                    if se2cridTapCount == 7 {
+                                        se2cridTapCount = 0
+                                        if let url = URL(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ") {
+                                            UIApplication.shared.open(url)
+                                        }
+                                    }
+                                }
+                            Text("HugeBlack") 
+                                .foregroundColor(.primaryText)
+                        }
                     }
                     .listRowBackground(Color.cardBackground)
+                    
                     Button(action: {
                         if let url = URL(string: "https://github.com/0-Blu/StikJIT") {
                             UIApplication.shared.open(url)
@@ -109,6 +180,20 @@ struct SettingsView: View {
                     }) {
                         HStack {
                             Text("View Source Code")
+                                .foregroundColor(.secondaryText)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundColor(.primaryText)
+                        }
+                    }
+                    .listRowBackground(Color.cardBackground)
+                    Button(action: {
+                        if let url = URL(string: "https://apps.apple.com/us/app/stiknes/id6737158545") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Text("Like this app? Check out StikNES!")
                                 .foregroundColor(.secondaryText)
                             Spacer()
                             Image(systemName: "arrow.up.right.square")
@@ -124,9 +209,8 @@ struct SettingsView: View {
             .font(.bodyFont)
             .accentColor(.accentColor)
         }
-        .fileImporter(isPresented: $isShowingPairingFilePicker, allowedContentTypes: [UTType(filenameExtension: "mobiledevicepairing", conformingTo: .data)!, .propertyList]) {result in
+        .fileImporter(isPresented: $isShowingPairingFilePicker, allowedContentTypes: [UTType(filenameExtension: "mobiledevicepairing", conformingTo: .data)!, .propertyList]) { result in
             switch result {
-            
             case .success(let url):
                 let fileManager = FileManager.default
                 let accessing = url.startAccessingSecurityScopedResource()
@@ -139,9 +223,37 @@ struct SettingsView: View {
                         
                         try fileManager.copyItem(at: url, to: URL.documentsDirectory.appendingPathComponent("pairingFile.plist"))
                         print("File copied successfully!")
+                        
+                        DispatchQueue.main.async {
+                            isImportingFile = true
+                            importProgress = 0.0
+                        }
+                        
+                        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+                            DispatchQueue.main.async {
+                                if importProgress < 1.0 {
+                                    importProgress += 0.25
+                                } else {
+                                    timer.invalidate()
+                                    isImportingFile = false
+                                    pairingFileIsValid = true
+                                    
+                                    withAnimation {
+                                        showPairingFileMessage = true
+                                    }
+                                    
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                        withAnimation {
+                                            showPairingFileMessage = false
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
                         startHeartbeatInBackground()
                         
-                        Thread.sleep(forTimeInterval: 5)
+                        RunLoop.current.add(progressTimer, forMode: .common)
                     } catch {
                         print("Error copying file: \(error)")
                     }
