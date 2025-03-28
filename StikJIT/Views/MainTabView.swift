@@ -16,7 +16,7 @@ struct MainTabView: View {
                 }
             SettingsView()
                 .tabItem {
-                    Label("Swttings", systemImage: "gearshape.fill")
+                    Label("Settings", systemImage: "gearshape.fill")
                 }
         }
     }

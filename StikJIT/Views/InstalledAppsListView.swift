@@ -22,7 +22,7 @@ struct InstalledAppsListView: View {
         if searchText.isEmpty {
             return Array(viewModel.apps.keys) // Use the keys (app names)
         } else {
-            return viewModel.apps.keys.filter { $0.localizedCaseInsensitiveContains(searchText) }
+            return viewModel.apps.filter { $0.value.localizedCaseInsensitiveContains(searchText) }.map { $0.key }
         }
     }
     
@@ -32,11 +32,11 @@ struct InstalledAppsListView: View {
                 selectedBackgroundColor.edgesIgnoringSafeArea(.all)
                 
                 List {
-                    ForEach(filteredApps, id: \.self) { app in
+                    ForEach(filteredApps, id: \.self) { bundleId in
                         Button(action: {
-                            onSelect(viewModel.apps[app] ?? "") // Select using the app's bundle ID
+                            onSelect(bundleId) // Select using the app's bundle ID
                         }) {
-                            Text(app)
+                            Text(viewModel.apps[bundleId] ?? "Unknown App")
                                 .font(.system(.body, design: .rounded))
                                 .padding(.vertical, 8)
                         }

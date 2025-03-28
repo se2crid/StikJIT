@@ -90,6 +90,18 @@ struct SettingsView: View {
                     }
                     
                     .listRowBackground(Color.cardBackground)
+                    HStack {
+                        Text("Collaborators:")
+                            .foregroundColor(.secondaryText)
+                        Spacer()
+                        Text("Stossy11")
+                            .foregroundColor(.primaryText)
+                        Text("Neo")
+                            .foregroundColor(.primaryText)
+                        Text("Se2crid")
+                            .foregroundColor(.primaryText)
+                    }
+                    .listRowBackground(Color.cardBackground)
                     Button(action: {
                         if let url = URL(string: "https://github.com/0-Blu/StikJIT") {
                             UIApplication.shared.open(url)
