@@ -259,11 +259,21 @@ struct HomeView: View {
     
     private func startJITInBackground(with bundleID: String) {
         isProcessing = true
+        
+        // Add log message
+        LogManager.shared.addInfoLog("Starting JIT for \(bundleID)")
+        
         DispatchQueue.global(qos: .background).async {
-            
-            JITEnableContext.shared().debugApp(withBundleID: bundleID, logger: nil)
+            JITEnableContext.shared().debugApp(withBundleID: bundleID, logger: { message in
+                // Safely unwrap the optional message
+                if let message = message {
+                    // Log messages from the JIT process
+                    LogManager.shared.addInfoLog(message)
+                }
+            })
             
             DispatchQueue.main.async {
+                LogManager.shared.addInfoLog("JIT process completed for \(bundleID)")
                 isProcessing = false
             }
         }

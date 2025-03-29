@@ -13,6 +13,7 @@
 #include "applist.h"
 
 #include "JITEnableContext.h"
+#import "StikJIT-Swift.h"  // This imports the Swift files into Objective-C
 
 JITEnableContext* sharedJITContext = nil;
 
@@ -40,6 +41,17 @@ JITEnableContext* sharedJITContext = nil;
          
         NSString *message = [[NSString alloc] initWithFormat:formatStr arguments:args];
         NSLog(@"%@", message);
+        
+        // Add to log manager
+        if ([message containsString:@"ERROR"] || [message containsString:@"Error"]) {
+            [[LogManagerBridge shared] addErrorLog:message];
+        } else if ([message containsString:@"WARNING"] || [message containsString:@"Warning"]) {
+            [[LogManagerBridge shared] addWarningLog:message];
+        } else if ([message containsString:@"DEBUG"]) {
+            [[LogManagerBridge shared] addDebugLog:message];
+        } else {
+            [[LogManagerBridge shared] addInfoLog:message];
+        }
         
         if(logger) {
             logger(message);
